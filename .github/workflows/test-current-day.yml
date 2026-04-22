@@ -1,8 +1,14 @@
-name: Test Current Day Script
+name: Test, Build, and Release Current Day App
 
 on:
   push:
+    tags:
+      - "v*"
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   test:
@@ -17,5 +23,37 @@ jobs:
         with:
           python-version: "3.x"
 
-      - name: Run script
-        run: python current_day.py
+      - name: Validate day/date functions
+        run: |
+          python -c "import current_day; print(current_day.get_current_day()); print(current_day.get_current_date())"
+
+  build-and-release:
+    runs-on: windows-latest
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install build dependency
+        run: python -m pip install pyinstaller
+
+      - name: Build Windows executable
+        run: pyinstaller --onefile --noconsole --name current-day-app current_day.py
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: current-day-app-windows
+          path: dist/current-day-app.exe
+
+      - name: Upload executable to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/current-day-app.exe
