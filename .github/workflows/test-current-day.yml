@@ -30,7 +30,8 @@ jobs:
   build-and-release:
     runs-on: windows-latest
     needs: test
-    if: startsWith(github.ref, 'refs/tags/')
+    env:
+      TAG_NAME: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'unset' }}
 
     steps:
       - name: Checkout repository
@@ -45,15 +46,16 @@ jobs:
         run: python -m pip install pyinstaller
 
       - name: Build Windows executable
-        run: pyinstaller --onefile --noconsole --name current-day-app current_day.py
+        run: pyinstaller --onefile --noconsole --name "current-day-app-$env:TAG_NAME" current_day.py
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: current-day-app-windows
-          path: dist/current-day-app.exe
+          name: current-day-app-windows-${{ env.TAG_NAME }}
+          path: dist/current-day-app-${{ env.TAG_NAME }}.exe
 
       - name: Upload executable to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/current-day-app.exe
+          files: dist/current-day-app-${{ env.TAG_NAME }}.exe
